@@ -1,4 +1,4 @@
 backend/.env
-backend/uploads/uploads.js
+backend/uploads
 backend/node_modules
 
