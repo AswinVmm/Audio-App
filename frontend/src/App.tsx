@@ -11,6 +11,8 @@ function App() {
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+  const backendUrl = (import.meta.env.VITE_REACT_BACKEND_URL || import.meta.env.VITE_BACKEND_URL) as string;
+
   const handleLogin = async () => {
     await supabase.auth.signInWithOtp({
       email: "user@email.com",
@@ -37,7 +39,7 @@ function App() {
       const session = await supabase.auth.getSession();
 
       const res = await axios.post(
-        "http://localhost:5000/upload",
+        backendUrl + '/upload',
         formData,
         {
           headers: {

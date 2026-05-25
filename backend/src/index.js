@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import axios from "axios";
 import fs from "fs";
 import { createClient } from "@supabase/supabase-js";
+import { getUser } from "./middleware/auth.js";
 
 dotenv.config();
 
@@ -18,72 +19,90 @@ const supabase = createClient(
 
 const upload = multer({ dest: "uploads/" });
 
-// app.post("/upload", upload.single("audio"), async (req, res) => {
-//     try {
-//         const audioPath = req.file.path;
+app.post("/upload", upload.single("audio"), async (req, res) => {
+    try {
+        const user = getUser(req);
 
-//         const audioData = fs.readFileSync(audioPath);
+        if (!user) {
+            return res.status(401).send("Unauthorized");
+        }
 
-//         const response = await axios.post(
-//             "https://api.deepgram.com/v1/listen",
-//             audioData,
-//             {
-//                 headers: {
-//                     Authorization: `Token ${process.env.DEEPGRAM_API_KEY}`,
-//                     "Content-Type": "audio/wav",
-//                 },
-//             }
-//         );
+        const audioPath = req.file.path;
+        const audioData = fs.readFileSync(audioPath);
 
-//         const transcript =
-//             response.data.results.channels[0].alternatives[0].transcript;
+        // 🎯 Send to Deepgram
+        const response = await axios.post(
+            "https://api.deepgram.com/v1/listen",
+            audioData,
+            {
+                headers: {
+                    Authorization: `Token ${process.env.DEEPGRAM_API_KEY}`,
+                    "Content-Type": req.file.mimetype,
+                },
+            }
+        );
 
-//         const { data, error } = await supabase.from("transcriptions").insert([
-//             {
-//                 file_url: req.file.filename,
-//                 transcription: transcript,
-//             },
-//         ]);
+        const transcript =
+            response.data.results.channels[0].alternatives[0].transcript;
 
-//         if (error) {
-//             console.error("Supabase error:", error);
-//         }
+        // 📦 Upload to Supabase Storage
+        const fileBuffer = fs.readFileSync(audioPath);
+        const fileName = `${Date.now()}-${req.file.originalname}`;
 
-//         res.json({ transcript });
-//     } catch (error) {
-//         console.error(error);
-//         res.status(500).send("Error processing audio");
-//     }
-// });
+        const { error: storageError } = await supabase.storage
+            .from("audio-files")
+            .upload(fileName, fileBuffer, {
+                contentType: req.file.mimetype,
+            });
 
-const fileBuffer = fs.readFileSync(audioPath);
-const fileName = `${Date.now()}-${req.file.originalname}`;
+        if (storageError) {
+            console.error(storageError);
+            return res.status(500).send("Storage upload failed");
+        }
 
-// Upload to Supabase Storage
-const { data: storageData, error: storageError } = await supabase.storage
-    .from("audio-files")
-    .upload(fileName, fileBuffer, {
-        contentType: req.file.mimetype,
-    });
+        const { data: publicUrlData } = supabase.storage
+            .from("audio-files")
+            .getPublicUrl(fileName);
 
-if (storageError) {
-    console.error(storageError);
-    return res.status(500).send("Storage upload failed");
-}
+        const fileUrl = publicUrlData.publicUrl;
 
-// Get public URL
-const { data: publicUrlData } = supabase.storage
-    .from("audio-files")
-    .getPublicUrl(fileName);
+        // 💾 Save in DB
+        const { error } = await supabase.from("transcriptions").insert([
+            {
+                user_id: user.sub,
+                file_url: fileUrl,
+                transcription: transcript,
+            },
+        ]);
 
-const fileUrl = publicUrlData.publicUrl;
+        if (error) {
+            console.error(error);
+        }
 
-const { data, error } = await supabase.from("transcriptions").insert([
-    {
-        user_id: req.user.id, // we'll fix this next
-        file_url: fileUrl,
-        transcription: transcript,
-    },
-]);
+        res.json({ transcript });
 
-app.listen(5000, () => console.log("Server running on port 5000"));
+    } catch (error) {
+        console.error(error);
+        res.status(500).send("Error processing audio");
+    }
+});
+
+app.get("/transcriptions", async (req, res) => {
+    const user = getUser(req);
+
+    if (!user) {
+        return res.status(401).send("Unauthorized");
+    }
+
+    const { data, error } = await supabase
+        .from("transcriptions")
+        .select("*")
+        .eq("user_id", user.sub)
+        .order("created_at", { ascending: false });
+
+    res.json(data);
+});
+
+app.listen(5000, () => {
+    console.log("Server running on port 5000");
+});
