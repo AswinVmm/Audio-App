@@ -15,7 +15,7 @@ function History() {
     const fetchHistory = async () => {
         const session = await supabase.auth.getSession();
 
-        const res = await axios.get(import.meta.env.VITE_BACKEND_URL + '/transcriptions', {
+        const res = await axios.get(import.meta.env.VITE_BACKEND_URL + '/api/transcriptions', {
             headers: {
                 Authorization: `Bearer ${session.data.session?.access_token}`,
             },

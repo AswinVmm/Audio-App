@@ -6,6 +6,7 @@ import axios from "axios";
 import fs from "fs";
 import { createClient } from "@supabase/supabase-js";
 import { getUser } from "./middleware/auth.js";
+import authRoutes from "./routes/auth.routes.js";
 
 dotenv.config();
 
@@ -17,11 +18,13 @@ const supabase = createClient(
     process.env.SUPABASE_KEY
 );
 
+app.use("/api", authRoutes(supabase));
+
 const upload = multer({ dest: "uploads/" });
 
 app.post("/upload", upload.single("audio"), async (req, res) => {
     try {
-        const user = getUser(req);
+        const user = await getUser(req, supabase);
 
         if (!user) {
             return res.status(401).send("Unauthorized");
@@ -69,7 +72,7 @@ app.post("/upload", upload.single("audio"), async (req, res) => {
         // 💾 Save in DB
         const { error } = await supabase.from("transcriptions").insert([
             {
-                user_id: user.sub,
+                user_id: user.id,
                 file_url: fileUrl,
                 transcription: transcript,
             },
@@ -85,22 +88,6 @@ app.post("/upload", upload.single("audio"), async (req, res) => {
         console.error(error);
         res.status(500).send("Error processing audio");
     }
-});
-
-app.get("/transcriptions", async (req, res) => {
-    const user = getUser(req);
-
-    if (!user) {
-        return res.status(401).send("Unauthorized");
-    }
-
-    const { data, error } = await supabase
-        .from("transcriptions")
-        .select("*")
-        .eq("user_id", user.sub)
-        .order("created_at", { ascending: false });
-
-    res.json(data);
 });
 
 app.listen(5000, () => {

@@ -11,7 +11,7 @@ function App() {
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-  const backendUrl = (import.meta.env.VITE_REACT_BACKEND_URL || import.meta.env.VITE_BACKEND_URL) as string;
+  const backendUrl = import.meta.env.VITE_BACKEND_URL as string;
 
   const handleLogin = async () => {
     await supabase.auth.signInWithOtp({
@@ -49,8 +49,8 @@ function App() {
       );
 
       setText(res.data.transcript);
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      console.error(error.response?.data || error.message);
       alert("Error uploading file");
     } finally {
       setLoading(false);
