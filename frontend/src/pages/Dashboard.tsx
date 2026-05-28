@@ -24,9 +24,9 @@ function App() {
         });
     }, []);
 
-    const handleLogin = async () => {
+    const handleLogin = async (email: string) => {
         await supabase.auth.signInWithOtp({
-            email: "user@email.com",
+            email,
         });
     };
 
@@ -75,7 +75,9 @@ function App() {
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6">
-            <h1 className="text-3xl font-bold mb-6">🎤 Audio to Text</h1>
+            <div><h1 className="text-3xl font-bold mb-6">🎤 Audio to Text</h1> <button onClick={handleLogout}>
+                Logout
+            </button></div>
 
             <div className="bg-white shadow-md rounded-xl p-6 w-full max-w-md">
                 <input
@@ -100,9 +102,7 @@ function App() {
                     </div>
                 )}
             </div>
-            <button onClick={handleLogout}>
-                Logout
-            </button>
+
         </div>
     );
 }

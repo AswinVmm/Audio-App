@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, processLock } from "@supabase/supabase-js";
 import { useNavigate } from "react-router-dom";
 
 const supabase = createClient(
@@ -7,11 +7,11 @@ const supabase = createClient(
     import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
-export default function Login() {
+export default function Signup() {
     const [email, setEmail] = useState("");
     const navigate = useNavigate();
 
-    const handleLogin = async () => {
+    const handleSignup = async () => {
         const { error } = await supabase.auth.signInWithOtp({
             email,
             options: {
@@ -22,13 +22,14 @@ export default function Login() {
         if (error) {
             alert(error.message);
         } else {
-            alert("Check your email for login link!");
+            alert("Signup successful! Check your email.");
+            navigate("/"); // go to login page
         }
     };
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen">
-            <h1 className="text-2xl mb-4">Login</h1>
+            <h1 className="text-2xl mb-4">Signup</h1>
 
             <input
                 type="email"
@@ -39,15 +40,15 @@ export default function Login() {
             />
 
             <button
-                onClick={handleLogin}
-                className="bg-blue-500 text-white px-4 py-2"
+                onClick={handleSignup}
+                className="bg-green-500 text-white px-4 py-2"
             >
-                Login
+                Signup
             </button>
 
             <p className="mt-4">
-                Don't have an account?{" "}
-                <button onClick={() => navigate("/signup")}>Signup</button>
+                Already have an account?{" "}
+                <button onClick={() => navigate("/")}>Login</button>
             </p>
         </div>
     );
