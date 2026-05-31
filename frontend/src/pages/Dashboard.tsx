@@ -10,6 +10,7 @@ function App() {
     const [loading, setLoading] = useState<boolean>(false);
     const [recording, setRecording] = useState<boolean>(false);
     const [history, setHistory] = useState<any[]>([]);
+    const [showHistory, setShowHistory] = useState(false);
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
@@ -26,7 +27,6 @@ function App() {
     useEffect(() => {
         supabase.auth.getSession().then(({ data }) => {
             if (!data.session) navigate("/");
-            else fetchHistory();
         });
     }, []);
 
@@ -57,6 +57,24 @@ function App() {
             setHistory(res.data);
         } catch (err) {
             console.error("History error:", err);
+        }
+    };
+
+    const deleteTranscription = async (id: string) => {
+        try {
+            const token = (await supabase.auth.getSession()).data.session?.access_token;
+
+            await axios.delete(`${backendUrl}/api/transcriptions/${id}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            // 🔄 Refresh history after delete
+            setHistory((prev) => prev.filter((item) => item.id !== id));
+
+        } catch (err) {
+            console.error(err);
         }
     };
 
@@ -105,7 +123,6 @@ function App() {
             setLoading(true);
 
             const session = await supabase.auth.getSession();
-            await fetchHistory();
             const res = await axios.post(
                 backendUrl + "/upload",
                 formData,
@@ -117,6 +134,11 @@ function App() {
             );
 
             setText(res.data.transcript);
+
+            if (showHistory) {
+                await fetchHistory();
+            }
+
         } catch (err: any) {
             console.error(err.response?.data || err.message);
             alert("Error uploading audio");
@@ -130,54 +152,202 @@ function App() {
         await uploadAudio(file);
     };
 
-    return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6">
+    // return (
+    //     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6">
 
-            <div className="flex justify-between w-full max-w-md mb-4">
-                <h1 className="text-2xl font-bold">🎤 Audio to Text</h1>
-                <button onClick={handleLogout}>Logout</button>
+    //         <div className="flex justify-between w-full max-w-md mb-4">
+    //             <h1 className="text-2xl font-bold">🎤 Audio to Text</h1>
+    //             <button className="btn-danger" onClick={handleLogout}>Logout</button>
+    //         </div>
+
+    //         <div className="bg-white p-6 rounded shadow w-full max-w-md">
+
+    //             {/* 📁 Upload */}
+    //             <input type="file" accept="audio/*" onChange={handleFileChange} />
+    //             <button onClick={handleUpload} disabled={loading}>
+    //                 Upload & Transcribe
+    //             </button>
+
+    //             <hr className="my-4" />
+
+    //             {/* 🎙️ Recorder */}
+    //             {!recording ? (
+    //                 <button onClick={startRecording} className="bg-green-500 text-white px-4 py-2">
+    //                     Start Recording
+    //                 </button>
+    //             ) : (
+    //                 <button onClick={stopRecording} className="bg-red-500 text-white px-4 py-2">
+    //                     Stop Recording
+    //                 </button>
+    //             )}
+
+    //             <button
+    //                 onClick={async () => {
+    //                     if (!showHistory) {
+    //                         await fetchHistory(); // fetch only when opening
+    //                     }
+    //                     setShowHistory(!showHistory);
+    //                 }}
+    //                 className="bg-purple-500 text-white px-4 py-2 mt-4"
+    //             >
+    //                 {showHistory ? "Hide History" : "Show Previous Transcriptions"}
+    //             </button>
+
+    //             {loading && <p>Processing...</p>}
+
+    //             {text && (
+    //                 <div className="mt-4 p-3 bg-gray-200 rounded">
+    //                     <h2>Transcription:</h2>
+    //                     <p>{text}</p>
+    //                 </div>
+    //             )}
+
+    //             {showHistory && history.length > 0 && (
+    //                 <div className="mt-6 w-full max-w-md">
+    //                     <h2 className="text-xl font-bold mb-2">🕘 History</h2>
+
+    //                     {history.map((item) => (
+    //                         <div key={item.id} className="border p-3 mt-2 flex justify-between items-center">
+    //                             <div>
+    //                                 <p className="font-semibold">{item.transcription}</p>
+    //                             </div>
+
+    //                             <button
+    //                                 onClick={() => {
+    //                                     if (confirm("Are you sure you want to delete this?")) {
+    //                                         deleteTranscription(item.id);
+    //                                     }
+    //                                 }}
+    //                                 className="bg-red-500 text-white px-3 py-1 rounded"
+    //                             >
+    //                                 Delete
+    //                             </button>
+    //                         </div>
+    //                     ))}
+    //                 </div>
+    //             )}
+    //         </div>
+    //     </div>
+    // );
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-green-100 to-gray-200 flex flex-col items-center p-6">
+
+            {/* HEADER */}
+            <div className="w-full max-w-3xl flex justify-between items-center mb-6">
+                <h1 className="text-3xl font-bold text-gray-800">🎤 Audio Transcriber</h1>
+
+                <button
+                    onClick={handleLogout}
+                    className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow transition"
+                >
+                    Logout
+                </button>
             </div>
 
-            <div className="bg-white p-6 rounded shadow w-full max-w-md">
+            {/* MAIN CARD */}
+            <div className="bg-white w-full max-w-3xl p-8 rounded-2xl shadow-lg">
 
-                {/* 📁 Upload */}
-                <input type="file" accept="audio/*" onChange={handleFileChange} />
-                <button onClick={handleUpload} disabled={loading}>
-                    Upload & Transcribe
-                </button>
+                {/* FILE UPLOAD */}
+                <div className="mb-6">
+                    <label className="block text-gray-600 mb-2 font-medium">
+                        Upload Audio File
+                    </label>
 
-                <hr className="my-4" />
+                    <input
+                        type="file"
+                        accept="audio/*"
+                        onChange={handleFileChange}
+                        className="w-full border p-2 rounded-lg"
+                    />
 
-                {/* 🎙️ Recorder */}
-                {!recording ? (
-                    <button onClick={startRecording} className="bg-green-500 text-white px-4 py-2">
-                        Start Recording
+                    <button
+                        onClick={handleUpload}
+                        disabled={loading}
+                        className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition disabled:bg-gray-400"
+                    >
+                        Upload & Transcribe
                     </button>
-                ) : (
-                    <button onClick={stopRecording} className="bg-red-500 text-white px-4 py-2">
-                        Stop Recording
+                </div>
+
+                <hr className="my-6" />
+
+                {/* RECORDING */}
+                <div className="flex gap-4">
+                    {!recording ? (
+                        <button
+                            onClick={startRecording}
+                            className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg transition"
+                        >
+                            🎙️ Start Recording
+                        </button>
+                    ) : (
+                        <button
+                            onClick={stopRecording}
+                            className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg transition"
+                        >
+                            ⏹ Stop Recording
+                        </button>
+                    )}
+
+                    <button
+                        onClick={async () => {
+                            if (!showHistory) await fetchHistory();
+                            setShowHistory(!showHistory);
+                        }}
+                        className="flex-1 bg-purple-500 hover:bg-purple-600 text-white py-2 rounded-lg transition"
+                    >
+                        {showHistory ? "Hide History" : "View History"}
                     </button>
+                </div>
+
+                {/* LOADING */}
+                {loading && (
+                    <p className="text-blue-600 mt-4 animate-pulse">
+                        Processing audio...
+                    </p>
                 )}
 
-                {loading && <p>Processing...</p>}
-
+                {/* RESULT */}
                 {text && (
-                    <div className="mt-4 p-3 bg-gray-200 rounded">
-                        <h2>Transcription:</h2>
-                        <p>{text}</p>
+                    <div className="mt-6 p-4 bg-gray-100 rounded-xl border">
+                        <h2 className="font-semibold text-gray-700 mb-2">
+                            Transcription
+                        </h2>
+                        <p className="text-gray-800 leading-relaxed">{text}</p>
                     </div>
                 )}
 
-                {history.length > 0 && (
-                    <div className="mt-6 w-full max-w-md">
-                        <h2 className="text-xl font-bold mb-2">🕘 History</h2>
+                {/* HISTORY */}
+                {showHistory && history.length > 0 && (
+                    <div className="mt-8">
+                        <h2 className="text-xl font-semibold mb-3 text-gray-800">
+                            🕘 Previous Transcriptions
+                        </h2>
 
-                        {history.map((item) => (
-                            <div key={item.id} className="bg-white p-3 mb-3 rounded shadow">
-                                <audio controls src={item.file_url}></audio>
-                                <p className="mt-2">{item.transcription}</p>
-                            </div>
-                        ))}
+                        <div className="space-y-3">
+                            {history.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className="flex justify-between items-center bg-gray-50 p-4 rounded-lg border hover:shadow-sm transition"
+                                >
+                                    <p className="text-gray-700 flex-1 pr-4">
+                                        {item.transcription}
+                                    </p>
+
+                                    <button
+                                        onClick={() => {
+                                            if (confirm("Delete this transcription?")) {
+                                                deleteTranscription(item.id);
+                                            }
+                                        }}
+                                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>

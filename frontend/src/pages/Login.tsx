@@ -28,27 +28,29 @@ export default function Login() {
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen">
-            <h1 className="text-2xl mb-4">Login</h1>
+            <div className="border-2 flex flex-col border-gray-300 p-4 rounded shadow">
+                <h1 className="text-2xl mb-4">Login</h1>
 
-            <input
-                type="email"
-                placeholder="Enter email"
-                className="border p-2 mb-4"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-            />
+                <input
+                    type="email"
+                    placeholder="Enter email"
+                    className="border p-2 mb-4"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                />
 
-            <button
-                onClick={handleLogin}
-                className="bg-blue-500 text-white px-4 py-2"
-            >
-                Login
-            </button>
+                <button
+                    onClick={handleLogin}
+                    className="bg-blue-500 rounded-4xl text-white px-4 py-2"
+                >
+                    Login
+                </button>
 
-            <p className="mt-4">
-                Don't have an account?{" "}
-                <button onClick={() => navigate("/signup")}>Signup</button>
-            </p>
+                <p className="mt-4">
+                    Don't have an account?{" "}
+                    <button className="bg-blue-500 text-white px-4 py-2 rounded-4xl" onClick={() => navigate("/signup")}>Signup</button>
+                </p>
+            </div>
         </div>
     );
 }
