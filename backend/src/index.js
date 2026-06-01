@@ -11,7 +11,10 @@ import authRoutes from "./routes/auth.routes.js";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use(cors({
+    origin: "https://audio-app-lac.vercel.app",
+    credentials: true
+}));
 
 const supabase = createClient(
     process.env.SUPABASE_URL,
